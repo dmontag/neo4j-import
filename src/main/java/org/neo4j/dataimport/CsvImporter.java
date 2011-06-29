@@ -45,18 +45,30 @@ public class CsvImporter implements BatchInserterImporter
 
     public static void main( String[] args )
     {
-        if (args.length != 3)
+        if ( args.length != 3 )
         {
             System.out.println( "Args: <target store dir> <nodes CSV> <relationships CSV>" );
             System.exit( 1 );
         }
-        BatchInserter batchInserter = new BatchInserterImpl( args[0] );
+        String storeDir = args[0];
+        BatchInserter batchInserter = new BatchInserterImpl( storeDir, getConfig( storeDir ) );
         new CsvImporter( new File( args[1] ), new File( args[2] ) ).importTo( batchInserter );
         batchInserter.shutdown();
     }
 
+    private static Map<String, String> getConfig( String storeDir )
+    {
+        File configFile = new File( storeDir, "neo4j.properties" );
+        if ( configFile.exists() )
+        {
+            return BatchInserterImpl.loadProperties( configFile.getAbsolutePath() );
+        }
+        return new HashMap<String, String>();
+    }
+
     private void importNodes( BatchInserter target ) throws FileNotFoundException
     {
+        long counter = 0;
         Scanner nodeScanner = new Scanner( nodes );
         while ( nodeScanner.hasNextLine() )
         {
@@ -80,12 +92,13 @@ public class CsvImporter implements BatchInserterImporter
                 continue;
             }
             target.createNode( id, getProperties( properties, nodePropertyKeys ) );
-            System.out.println( "Creating node " + id );
+            if ( ++counter % 100000 == 0 ) System.out.println( "Created " + counter + " nodes." );
         }
     }
 
     private void importRels( BatchInserter target ) throws FileNotFoundException
     {
+        long counter = 0;
         Scanner nodeScanner = new Scanner( rels );
         while ( nodeScanner.hasNextLine() )
         {
@@ -118,9 +131,8 @@ public class CsvImporter implements BatchInserterImporter
                 continue;
             }
             target.createRelationship( from, to, type, getProperties( properties, relPropertyKeys ) );
-            System.out.println( "Creating rel from " + from + " to " + to );
+            if ( ++counter % 100000 == 0 ) System.out.println( "Created " + counter + " relationships." );
         }
-
     }
 
     private List<Pair<String, String>> parsePropertyKeys( List<String> properties )
@@ -158,7 +170,6 @@ public class CsvImporter implements BatchInserterImporter
                 properties.put( key, getPropertyValue( value, pair.other() ) );
             }
         }
-        System.out.println( String.format( "Props: %s", properties ) );
         return properties;
     }
 
