@@ -27,20 +27,6 @@ public class CsvImporter implements BatchInserterImporter
         this.rels = rels;
     }
 
-    @Override
-    public void importTo( BatchInserter target )
-    {
-        try
-        {
-            importNodes( target );
-            importRels( target );
-        }
-        catch ( Exception e )
-        {
-            throw new DataImportException( e );
-        }
-    }
-
     public static void main( String[] args )
     {
         if ( args.length != 3 )
@@ -57,6 +43,20 @@ public class CsvImporter implements BatchInserterImporter
         finally
         {
             batchInserter.shutdown();
+        }
+    }
+
+    @Override
+    public void importTo( BatchInserter target )
+    {
+        try
+        {
+            importNodes( target );
+            importRels( target );
+        }
+        catch ( Exception e )
+        {
+            throw new DataImportException( e );
         }
     }
 
