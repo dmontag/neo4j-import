@@ -28,7 +28,7 @@ public class CsvImporterTest
 {
     private File nodes;
     private File rels;
-    private BatchInserter batchImporter;
+    private BatchInserter batchInserter;
     private String storePath;
     private GraphDatabaseService graphDb;
 
@@ -38,7 +38,7 @@ public class CsvImporterTest
         nodes = File.createTempFile( "nodes-import-", ".csv" );
         rels = File.createTempFile( "rels-import-", ".csv" );
         storePath = createTempDir().getAbsolutePath();
-        batchImporter = new BatchInserterImpl( storePath );
+        batchInserter = new BatchInserterImpl( storePath );
     }
 
     private File createTempDir() throws IOException
@@ -52,9 +52,9 @@ public class CsvImporterTest
     public void tearDown()
     {
         assertTrue( "Unable to delete tempfile.", nodes.delete() );
-        if (batchImporter != null)
+        if ( batchInserter != null)
         {
-            batchImporter.shutdown();
+            batchInserter.shutdown();
         }
         if (graphDb != null)
         {
@@ -66,7 +66,7 @@ public class CsvImporterTest
     public void testEmptyImport() throws IOException
     {
         CsvImporter csvImporter = new CsvImporter( nodes, rels );
-        csvImporter.importTo( batchImporter );
+        csvImporter.importTo( batchInserter );
 
         importComplete();
 
@@ -81,7 +81,7 @@ public class CsvImporterTest
         writeFiles();
 
         CsvImporter csvImporter = new CsvImporter( nodes, rels );
-        csvImporter.importTo( batchImporter );
+        csvImporter.importTo( batchInserter );
 
         importComplete();
 
@@ -106,7 +106,7 @@ public class CsvImporterTest
         writeFiles();
 
         CsvImporter csvImporter = new CsvImporter( nodes, rels );
-        csvImporter.importTo( batchImporter );
+        csvImporter.importTo( batchInserter );
 
         importComplete();
 
@@ -126,7 +126,7 @@ public class CsvImporterTest
         writeFiles();
 
         CsvImporter csvImporter = new CsvImporter( nodes, rels );
-        csvImporter.importTo( batchImporter );
+        csvImporter.importTo( batchInserter );
 
         importComplete();
 
@@ -145,7 +145,7 @@ public class CsvImporterTest
         writeFiles();
 
         CsvImporter csvImporter = new CsvImporter( nodes, rels );
-        csvImporter.importTo( batchImporter );
+        csvImporter.importTo( batchInserter );
 
         importComplete();
 
@@ -167,7 +167,7 @@ public class CsvImporterTest
         writeFiles();
 
         CsvImporter csvImporter = new CsvImporter( nodes, rels );
-        csvImporter.importTo( batchImporter );
+        csvImporter.importTo( batchInserter );
 
         importComplete();
 
@@ -207,7 +207,7 @@ public class CsvImporterTest
         writeFiles();
 
         CsvImporter csvImporter = new CsvImporter( nodes, rels );
-        csvImporter.importTo( batchImporter );
+        csvImporter.importTo( batchInserter );
 
         importComplete();
 
@@ -224,8 +224,8 @@ public class CsvImporterTest
 
     private void importComplete()
     {
-        batchImporter.shutdown();
-        batchImporter = null;
+        batchInserter.shutdown();
+        batchInserter = null;
         graphDb = new EmbeddedGraphDatabase( storePath );
     }
 

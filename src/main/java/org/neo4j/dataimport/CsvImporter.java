@@ -20,8 +20,6 @@ public class CsvImporter implements BatchInserterImporter
 {
     private File nodes;
     private File rels;
-    private List<Pair<String, String>> nodePropertyKeys;
-    private List<Pair<String, String>> relPropertyKeys;
 
     public CsvImporter( File nodes, File rels )
     {
@@ -74,6 +72,7 @@ public class CsvImporter implements BatchInserterImporter
 
     private void importNodes( BatchInserter target ) throws FileNotFoundException
     {
+        List<Pair<String, String>> nodePropertyKeys = null;
         long counter = 0;
         Scanner nodeScanner = new Scanner( nodes );
         while ( nodeScanner.hasNextLine() )
@@ -104,6 +103,7 @@ public class CsvImporter implements BatchInserterImporter
 
     private void importRels( BatchInserter target ) throws FileNotFoundException
     {
+        List<Pair<String, String>> relPropertyKeys = null;
         long counter = 0;
         Scanner nodeScanner = new Scanner( rels );
         while ( nodeScanner.hasNextLine() )
