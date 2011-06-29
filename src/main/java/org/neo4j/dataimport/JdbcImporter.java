@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -25,8 +26,8 @@ public class JdbcImporter implements BatchInserterImporter
     private String relSrcColumnName = "src";
     private String relDestColumnName = "dest";
     private String relTypeColumnName = "type";
-    private Set<String> additionalReservedRelPropertyColumns;
-    private Set<String> additionalReservedNodePropertyColumns;
+    private Set<String> relPropertyColumns;
+    private Set<String> nodePropertyColumns;
 
     public JdbcImporter( Connection connection, String nodes, String rels )
     {
@@ -55,17 +56,17 @@ public class JdbcImporter implements BatchInserterImporter
         this.relTypeColumnName = relTypeColumnName;
     }
 
-    public void setAdditionalReservedRelPropertyColumns( Set<String> additionalReservedRelPropertyColumns )
+    public void setRelPropertyColumns( Set<String> relPropertyColumns )
     {
-        this.additionalReservedRelPropertyColumns = additionalReservedRelPropertyColumns;
+        this.relPropertyColumns = relPropertyColumns;
     }
 
-    public void setAdditionalReservedNodePropertyColumns( Set<String> additionalReservedNodePropertyColumns )
+    public void setNodePropertyColumns( Set<String> nodePropertyColumns )
     {
-        this.additionalReservedNodePropertyColumns = additionalReservedNodePropertyColumns;
+        this.nodePropertyColumns = nodePropertyColumns;
     }
 
-    public static void main(String[] args) throws SQLException
+    public static void main( String[] args ) throws SQLException
     {
         if ( args.length != 6 )
         {
@@ -122,17 +123,18 @@ public class JdbcImporter implements BatchInserterImporter
     {
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery( "SELECT * FROM " + nodesTable );
-        Map<String, String> columnTypes = getPropertyColumns( resultSet, getReservedNodeColumns() );
+        Map<String, ColumnProperty> columnTypes = getPropertyColumns( resultSet, getReservedNodeColumns(), nodePropertyColumns );
         while ( resultSet.next() )
         {
-            target.createNode( resultSet.getLong( nodeIdColumnName ), getProperties( columnTypes, resultSet ) );
+            target.createNode( resultSet.getLong( nodeIdColumnName ),
+                getPropertiesFromResultSet( columnTypes, resultSet ) );
         }
         statement.close();
     }
 
     private Set<String> getReservedNodeColumns()
     {
-        Set<String> columns = additionalReservedNodePropertyColumns != null ? new HashSet<String>( additionalReservedNodePropertyColumns ) : new HashSet<String>();
+        Set<String> columns = new HashSet<String>();
         columns.add( nodeIdColumnName );
         return columns;
     }
@@ -141,98 +143,179 @@ public class JdbcImporter implements BatchInserterImporter
     {
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery( "SELECT * FROM " + relsTable );
-        Map<String, String> columnTypes = getPropertyColumns( resultSet, getReservedRelColumns() );
+        Map<String, ColumnProperty> columnTypes = getPropertyColumns( resultSet, getReservedRelColumns(), relPropertyColumns );
         while ( resultSet.next() )
         {
-            target.createRelationship( resultSet.getLong( relSrcColumnName ), resultSet.getLong( relDestColumnName ), DynamicRelationshipType.withName( resultSet.getString( relTypeColumnName ) ), getProperties( columnTypes, resultSet ) );
+            target.createRelationship( resultSet.getLong( relSrcColumnName ),
+                resultSet.getLong( relDestColumnName ),
+                DynamicRelationshipType.withName( resultSet.getString( relTypeColumnName ) ),
+                getPropertiesFromResultSet( columnTypes, resultSet ) );
         }
         statement.close();
     }
 
     private Set<String> getReservedRelColumns()
     {
-        Set<String> columns = additionalReservedNodePropertyColumns != null ? new HashSet<String>( additionalReservedRelPropertyColumns ) : new HashSet<String>();
+        Set<String> columns = new HashSet<String>();
         columns.add( relSrcColumnName );
         columns.add( relDestColumnName );
         columns.add( relTypeColumnName );
         return columns;
     }
 
-    private Map<String, String> getPropertyColumns( ResultSet resultSet, Set<String> reserved ) throws SQLException
+    private Map<String, Object> getPropertiesFromResultSet( Map<String, ColumnProperty> columnTypes, ResultSet resultSet ) throws SQLException
     {
-        Map<String, String> columnTypes = new HashMap<String, String>();
+        Map<String, Object> properties = new HashMap<String, Object>();
+        for ( Map.Entry<String, ColumnProperty> columnEntry : columnTypes.entrySet() )
+        {
+            String key = columnEntry.getKey();
+            Object value = columnEntry.getValue().getValue( resultSet );
+            if ( value != null )
+            {
+                properties.put( key.toLowerCase(), value );
+            }
+        }
+        return properties;
+    }
+
+    private Map<String, ColumnProperty> getPropertyColumns( ResultSet resultSet, Set<String> reservedColumns, Set<String> propertyColumns ) throws SQLException
+    {
+        Map<String, ColumnProperty> columnTypes = new HashMap<String, ColumnProperty>();
         ResultSetMetaData metaData = resultSet.getMetaData();
         long columnCount = metaData.getColumnCount();
         System.out.println( String.format( "Found %d columns", columnCount ) );
         for ( int i = 1; i <= columnCount; i++ )
         {
-            String columnName = metaData.getColumnName( i ).toLowerCase();
-            String columnType = metaData.getColumnTypeName( i ).toLowerCase();
-            System.out.println( String.format( "Found column %s (%s)", columnName, columnType ) );
-            if ( !reserved.contains( columnName ) )
+            String columnName = metaData.getColumnName( i );
+            if ( isPropertyColumn( columnName, reservedColumns, propertyColumns ) )
             {
+                ColumnProperty columnType = getPropertyConverter( columnName, metaData.getColumnTypeName( i ) );
                 columnTypes.put( columnName, columnType );
             }
         }
         return columnTypes;
     }
 
-    private Map<String, Object> getProperties( Map<String, String> columnTypes, ResultSet resultSet ) throws SQLException
+    private boolean isPropertyColumn( String columnName, Set<String> reservedColumns, Set<String> propertyColumns )
     {
-        Map<String, Object> properties = new HashMap<String, Object>();
-        for ( Map.Entry<String, String> columnEntry : columnTypes.entrySet() )
+        if ( propertyColumns != null )
         {
-            String key = columnEntry.getKey();
-            Object value = getProperty( key, columnEntry.getValue(), resultSet );
-            if ( value != null )
-            {
-                properties.put( key, value );
-            }
+            return containsIgnoreCase( propertyColumns, columnName );
         }
-        return properties;
+        return !containsIgnoreCase( reservedColumns, columnName );
     }
 
-    private Object getProperty( String column, String type, ResultSet resultSet ) throws SQLException
+    private boolean containsIgnoreCase( Collection<String> collection, String item )
     {
-        if ( type.equals( "varchar" ) )
+        for ( String element : collection )
         {
-            return resultSet.getString( column );
+            if ( element.equalsIgnoreCase( item ) )
+            {
+                return true;
+            }
         }
-        else if ( type.equals( "bigint" ) )
+        return false;
+    }
+
+    private ColumnProperty getPropertyConverter( final String columnName, String columnType )
+    {
+
+        if ( columnType.equals( "VARCHAR" ) )
         {
-            return resultSet.getLong( column );
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getString( columnName );
+                }
+            };
         }
-        else if ( type.equals( "integer" ) )
+        else if ( columnType.equals( "BIGINT" ) )
         {
-            return resultSet.getInt( column );
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getLong( columnName );
+                }
+            };
         }
-        else if ( type.equals( "tinyint" ) )
+        else if ( columnType.equals( "INTEGER" ) )
         {
-            return resultSet.getByte( column );
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getInt( columnName );
+                }
+            };
         }
-        else if ( type.equals( "smallint" ) )
+        else if ( columnType.equals( "TINYINT" ) )
         {
-            return resultSet.getShort( column );
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getByte( columnName );
+                }
+            };
         }
-//        else if ( type.equals( "char" ) )
-//        {
-//            return s.charAt( 0 );
-//        }
-        else if ( type.equals( "boolean" ) )
+        else if ( columnType.equals( "SMALLINT" ) )
         {
-            return resultSet.getBoolean( column );
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getShort( columnName );
+                }
+            };
         }
-        else if ( type.equals( "float" ) )
+        else if ( columnType.equals( "BOOLEAN" ) )
         {
-            return resultSet.getFloat( column );
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getBoolean( columnName );
+                }
+            };
         }
-        else if ( type.equals( "double" ) )
+        else if ( columnType.equals( "FLOAT" ) )
         {
-            return resultSet.getDouble( column );
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getFloat( columnName );
+                }
+            };
+        }
+        else if ( columnType.equals( "DOUBLE" ) )
+        {
+            return new ColumnProperty()
+            {
+                @Override
+                public Object getValue( ResultSet resultSet ) throws SQLException
+                {
+                    return resultSet.getDouble( columnName );
+                }
+            };
         }
         else
         {
-            throw new IllegalStateException( "Unknown type: " + type );
+            throw new IllegalStateException( "Unknown type: " + columnType );
         }
+    }
+
+    private interface ColumnProperty
+    {
+        Object getValue( ResultSet resultSet ) throws SQLException;
     }
 }

@@ -20,6 +20,8 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.HashSet;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -242,6 +244,32 @@ public class JdbcImporterTest
         Node node3 = graphDb.getNodeById( 3 );
         assertEquals( "c", node3.getProperty( "name" ) );
         assertEquals( 26L, node3.getProperty( "age" ) );
+    }
+
+    @Test
+    public void testConfigurableProperties() throws SQLException
+    {
+        update( "CREATE TABLE nodes (id BIGINT IDENTITY, name VARCHAR, age BIGINT)" );
+        update( "CREATE TABLE rels (s BIGINT, d BIGINT, t VARCHAR, since BIGINT)" );
+        update( "INSERT INTO nodes (id,name,age) VALUES(1,'hello',25)" );
+        update( "INSERT INTO nodes (id,name,age) VALUES(2,'foo',26)" );
+        update( "INSERT INTO rels (s,d,t,since) VALUES(1,2,'KNOWS',24)" );
+
+        JdbcImporter jdbcImporter = new JdbcImporter(connection, "nodes", "rels");
+        jdbcImporter.setNodePropertyColumns( new HashSet<String>( Arrays.asList( "age" ) ) );
+        jdbcImporter.setRelSrcColumnName( "s" );
+        jdbcImporter.setRelDestColumnName( "d" );
+        jdbcImporter.setRelTypeColumnName( "t" );
+        jdbcImporter.setRelPropertyColumns( new HashSet<String>( Arrays.asList( "since" ) ) );
+        jdbcImporter.importTo( batchInserter );
+
+        importComplete();
+
+        Node node1 = graphDb.getNodeById( 1 );
+        assertEquals( null, node1.getProperty( "name", null ) );
+        assertEquals( 25L, node1.getProperty( "age" ) );
+        Relationship rel = node1.getSingleRelationship( DynamicRelationshipType.withName( "KNOWS" ), Direction.OUTGOING );
+        assertEquals( 24L, rel.getProperty( "since" ) );
     }
 
     private void update( String sql ) throws SQLException
