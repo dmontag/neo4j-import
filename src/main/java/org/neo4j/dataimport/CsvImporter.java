@@ -52,8 +52,14 @@ public class CsvImporter implements BatchInserterImporter
         }
         String storeDir = args[0];
         BatchInserter batchInserter = new BatchInserterImpl( storeDir, getConfig( storeDir ) );
-        new CsvImporter( new File( args[1] ), new File( args[2] ) ).importTo( batchInserter );
-        batchInserter.shutdown();
+        try
+        {
+            new CsvImporter( new File( args[1] ), new File( args[2] ) ).importTo( batchInserter );
+        }
+        finally
+        {
+            batchInserter.shutdown();
+        }
     }
 
     private static Map<String, String> getConfig( String storeDir )
