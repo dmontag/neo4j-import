@@ -249,13 +249,14 @@ public class JdbcImporterTest
     @Test
     public void testConfigurableProperties() throws SQLException
     {
-        update( "CREATE TABLE nodes (id BIGINT IDENTITY, name VARCHAR, age BIGINT)" );
+        update( "CREATE TABLE nodes (i BIGINT IDENTITY, name VARCHAR, age BIGINT)" );
         update( "CREATE TABLE rels (s BIGINT, d BIGINT, t VARCHAR, since BIGINT)" );
-        update( "INSERT INTO nodes (id,name,age) VALUES(1,'hello',25)" );
-        update( "INSERT INTO nodes (id,name,age) VALUES(2,'foo',26)" );
+        update( "INSERT INTO nodes (i,name,age) VALUES(1,'hello',25)" );
+        update( "INSERT INTO nodes (i,name,age) VALUES(2,'foo',26)" );
         update( "INSERT INTO rels (s,d,t,since) VALUES(1,2,'KNOWS',24)" );
 
         JdbcImporter jdbcImporter = new JdbcImporter(connection, "nodes", "rels");
+        jdbcImporter.setNodeIdColumnName( "i" );
         jdbcImporter.setNodePropertyColumns( new HashSet<String>( Arrays.asList( "age" ) ) );
         jdbcImporter.setRelSrcColumnName( "s" );
         jdbcImporter.setRelDestColumnName( "d" );

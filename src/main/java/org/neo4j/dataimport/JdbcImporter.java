@@ -5,6 +5,7 @@ import org.neo4j.kernel.impl.batchinsert.BatchInserter;
 import org.neo4j.kernel.impl.batchinsert.BatchInserterImpl;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -36,41 +37,11 @@ public class JdbcImporter implements BatchInserterImporter
         relsTable = rels;
     }
 
-    public void setNodeIdColumnName( String nodeIdColumnName )
-    {
-        this.nodeIdColumnName = nodeIdColumnName;
-    }
-
-    public void setRelSrcColumnName( String relSrcColumnName )
-    {
-        this.relSrcColumnName = relSrcColumnName;
-    }
-
-    public void setRelDestColumnName( String relDestColumnName )
-    {
-        this.relDestColumnName = relDestColumnName;
-    }
-
-    public void setRelTypeColumnName( String relTypeColumnName )
-    {
-        this.relTypeColumnName = relTypeColumnName;
-    }
-
-    public void setRelPropertyColumns( Set<String> relPropertyColumns )
-    {
-        this.relPropertyColumns = relPropertyColumns;
-    }
-
-    public void setNodePropertyColumns( Set<String> nodePropertyColumns )
-    {
-        this.nodePropertyColumns = nodePropertyColumns;
-    }
-
-    public static void main( String[] args ) throws SQLException
+    public static void main( String[] args ) throws SQLException, IOException
     {
         if ( args.length != 6 )
         {
-            System.out.println( "Args: <target store dir> <connection string> <user> <pass> <nodes table> <relationships table>" );
+            System.out.println( "Args: <target store dir> <config file>" );
             System.exit( 1 );
         }
         String storeDir = args[0];
@@ -127,7 +98,7 @@ public class JdbcImporter implements BatchInserterImporter
         while ( resultSet.next() )
         {
             target.createNode( resultSet.getLong( nodeIdColumnName ),
-                getPropertiesFromResultSet( columnTypes, resultSet ) );
+                buildPropertiesFromResultSet( columnTypes, resultSet ) );
         }
         statement.close();
     }
@@ -149,7 +120,7 @@ public class JdbcImporter implements BatchInserterImporter
             target.createRelationship( resultSet.getLong( relSrcColumnName ),
                 resultSet.getLong( relDestColumnName ),
                 DynamicRelationshipType.withName( resultSet.getString( relTypeColumnName ) ),
-                getPropertiesFromResultSet( columnTypes, resultSet ) );
+                buildPropertiesFromResultSet( columnTypes, resultSet ) );
         }
         statement.close();
     }
@@ -163,7 +134,7 @@ public class JdbcImporter implements BatchInserterImporter
         return columns;
     }
 
-    private Map<String, Object> getPropertiesFromResultSet( Map<String, ColumnProperty> columnTypes, ResultSet resultSet ) throws SQLException
+    private Map<String, Object> buildPropertiesFromResultSet( Map<String, ColumnProperty> columnTypes, ResultSet resultSet ) throws SQLException
     {
         Map<String, Object> properties = new HashMap<String, Object>();
         for ( Map.Entry<String, ColumnProperty> columnEntry : columnTypes.entrySet() )
@@ -317,5 +288,36 @@ public class JdbcImporter implements BatchInserterImporter
     private interface ColumnProperty
     {
         Object getValue( ResultSet resultSet ) throws SQLException;
+    }
+
+
+    public void setNodeIdColumnName( String nodeIdColumnName )
+    {
+        this.nodeIdColumnName = nodeIdColumnName;
+    }
+
+    public void setRelSrcColumnName( String relSrcColumnName )
+    {
+        this.relSrcColumnName = relSrcColumnName;
+    }
+
+    public void setRelDestColumnName( String relDestColumnName )
+    {
+        this.relDestColumnName = relDestColumnName;
+    }
+
+    public void setRelTypeColumnName( String relTypeColumnName )
+    {
+        this.relTypeColumnName = relTypeColumnName;
+    }
+
+    public void setRelPropertyColumns( Set<String> relPropertyColumns )
+    {
+        this.relPropertyColumns = relPropertyColumns;
+    }
+
+    public void setNodePropertyColumns( Set<String> nodePropertyColumns )
+    {
+        this.nodePropertyColumns = nodePropertyColumns;
     }
 }
