@@ -3,6 +3,7 @@ package org.neo4j.dataimport;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -12,15 +13,24 @@ import java.util.Set;
 public class ColumnPropertyStrategy implements PropertyStrategy
 {
 
-    private String nodeIdColumnName = "id";
-    private Set<String> nodePropertyColumns;
-    private Map<String,ColumnAccessor> columnTypes;
+    private Set<String> reservedColumns = new HashSet<String>();
+    private Set<String> specificPropertyColumns;
+    private Map<String, ColumnAccessor> columnTypes = new HashMap<String, ColumnAccessor>();
+
+    public ColumnPropertyStrategy()
+    {
+    }
+
+    public ColumnPropertyStrategy( String... specificPropertyColumns )
+    {
+        this.specificPropertyColumns = asSet( specificPropertyColumns );
+    }
 
     @Override
     public void initialize( ResultSet resultSet, String... reservedColumns ) throws SQLException
     {
-        nodeIdColumnName = reservedColumns[0];
-        columnTypes = getPropertyColumns( resultSet, getReservedNodeColumns(), nodePropertyColumns );
+        this.reservedColumns = asSet( reservedColumns );
+        columnTypes = getPropertyColumns( resultSet );
     }
 
     @Override
@@ -40,14 +50,7 @@ public class ColumnPropertyStrategy implements PropertyStrategy
         return properties;
     }
 
-    private Set<String> getReservedNodeColumns()
-    {
-        Set<String> columns = new HashSet<String>();
-        columns.add( nodeIdColumnName );
-        return columns;
-    }
-
-    private Map<String, ColumnAccessor> getPropertyColumns( ResultSet resultSet, Set<String> reservedColumns, Set<String> propertyColumns ) throws SQLException
+    private Map<String, ColumnAccessor> getPropertyColumns( ResultSet resultSet ) throws SQLException
     {
         Map<String, ColumnAccessor> columnTypes = new HashMap<String, ColumnAccessor>();
         ResultSetMetaData metaData = resultSet.getMetaData();
@@ -56,7 +59,7 @@ public class ColumnPropertyStrategy implements PropertyStrategy
         for ( int i = 1; i <= columnCount; i++ )
         {
             String columnName = metaData.getColumnName( i );
-            if ( isPropertyColumn( columnName, reservedColumns, propertyColumns ) )
+            if ( isPropertyColumn( columnName ) )
             {
                 ColumnAccessor columnType = getPropertyConverter( columnName, metaData.getColumnTypeName( i ) );
                 columnTypes.put( columnName, columnType );
@@ -65,11 +68,11 @@ public class ColumnPropertyStrategy implements PropertyStrategy
         return columnTypes;
     }
 
-    private boolean isPropertyColumn( String columnName, Set<String> reservedColumns, Set<String> propertyColumns )
+    private boolean isPropertyColumn( String columnName )
     {
-        if ( propertyColumns != null )
+        if ( specificPropertyColumns != null )
         {
-            return containsIgnoreCase( propertyColumns, columnName );
+            return containsIgnoreCase( specificPropertyColumns, columnName );
         }
         return !containsIgnoreCase( reservedColumns, columnName );
     }
@@ -183,9 +186,14 @@ public class ColumnPropertyStrategy implements PropertyStrategy
         }
     }
 
-    public void setNodePropertyColumns( Set<String> nodePropertyColumns )
+//    public void setSpecificPropertyColumns( String... specificPropertyColumns )
+//    {
+//        this.specificPropertyColumns = asSet( specificPropertyColumns );
+//    }
+
+    private static Set<String> asSet( String... reservedColumns )
     {
-        this.nodePropertyColumns = nodePropertyColumns;
+        return new HashSet<String>( Arrays.asList( reservedColumns ) );
     }
 }
 

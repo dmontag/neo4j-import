@@ -20,8 +20,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
-import java.util.HashSet;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -257,14 +255,11 @@ public class JdbcImporterTest
 
         JdbcImporter jdbcImporter = new JdbcImporter(connection, "nodes", "rels");
         jdbcImporter.setNodeIdColumnName( "i" );
-//        jdbcImporter.setNodePropertyColumns( new HashSet<String>( Arrays.asList( "age" ) ) );
-        ColumnPropertyStrategy nodePropertyStrategy = new ColumnPropertyStrategy();
-        nodePropertyStrategy.setNodePropertyColumns( new HashSet<String>( Arrays.asList( "age" ) ) );
-        jdbcImporter.setNodePropertyStrategy( nodePropertyStrategy );
+        jdbcImporter.setNodePropertyStrategy( new ColumnPropertyStrategy( "age" ) );
         jdbcImporter.setRelSrcColumnName( "s" );
         jdbcImporter.setRelDestColumnName( "d" );
         jdbcImporter.setRelTypeColumnName( "t" );
-        jdbcImporter.setRelPropertyColumns( new HashSet<String>( Arrays.asList( "since" ) ) );
+        jdbcImporter.setRelPropertyStrategy( new ColumnPropertyStrategy( "since" ) );
         jdbcImporter.importTo( batchInserter );
 
         importComplete();

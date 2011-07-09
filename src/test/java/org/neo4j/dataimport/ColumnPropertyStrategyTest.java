@@ -3,7 +3,6 @@ package org.neo4j.dataimport;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -16,7 +15,6 @@ import java.util.Map;
 
 import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 public class ColumnPropertyStrategyTest
 {
@@ -47,7 +45,6 @@ public class ColumnPropertyStrategyTest
     }
 
     @Test
-    @Ignore
     public void shouldGenerateEmptyPropertiesForEmptyResultSet() throws SQLException
     {
         update( "CREATE TABLE nodes (id BIGINT IDENTITY, name VARCHAR)" );
@@ -55,10 +52,7 @@ public class ColumnPropertyStrategyTest
         ResultSet rs = query( "SELECT * FROM nodes" );
 
         ColumnPropertyStrategy strategy = new ColumnPropertyStrategy();
-        strategy.initialize(rs, ID_COLUMN_NAME );
-
-        Map<String, Object> properties = strategy.getPropertiesForCursorRow( rs );
-        assertTrue(properties.isEmpty() );
+        strategy.initialize( rs, ID_COLUMN_NAME );
     }
 
     @Test
@@ -69,12 +63,12 @@ public class ColumnPropertyStrategyTest
 
         ResultSet rs = query( "SELECT * FROM nodes" );
         ColumnPropertyStrategy strategy = new ColumnPropertyStrategy();
-        strategy.initialize(rs, ID_COLUMN_NAME );
+        strategy.initialize( rs, ID_COLUMN_NAME );
 
         rs.next();
         Map<String, Object> properties = strategy.getPropertiesForCursorRow( rs );
-        assertEquals("hello", properties.get( "name" ) );
-        assertFalse(properties.containsKey( "id" ));
+        assertEquals( "hello", properties.get( "name" ) );
+        assertFalse( properties.containsKey( "id" ) );
     }
 
     @Test
@@ -85,11 +79,11 @@ public class ColumnPropertyStrategyTest
 
         ResultSet rs = query( "SELECT * FROM nodes" );
         ColumnPropertyStrategy strategy = new ColumnPropertyStrategy();
-        strategy.initialize(rs, ID_COLUMN_NAME );
+        strategy.initialize( rs, ID_COLUMN_NAME );
 
         rs.next();
         Map<String, Object> propertiesForCursorRow = strategy.getPropertiesForCursorRow( rs );
-        
+
         Assert.assertEquals( "hello", propertiesForCursorRow.get( "s" ) );
         Assert.assertEquals( 9999999999999999L, propertiesForCursorRow.get( "l" ) );
         Assert.assertEquals( 888888888, propertiesForCursorRow.get( "i" ) );
@@ -110,7 +104,7 @@ public class ColumnPropertyStrategyTest
 
         ResultSet rs = query( "SELECT * FROM nodes" );
         ColumnPropertyStrategy strategy = new ColumnPropertyStrategy();
-        strategy.initialize(rs, ID_COLUMN_NAME );
+        strategy.initialize( rs, ID_COLUMN_NAME );
 
         rs.next();
         Map<String, Object> propertiesForCursorRow = strategy.getPropertiesForCursorRow( rs );
@@ -121,7 +115,7 @@ public class ColumnPropertyStrategyTest
         rs.next();
         propertiesForCursorRow = strategy.getPropertiesForCursorRow( rs );
 
-        assertFalse(propertiesForCursorRow.containsKey( "name" ));
+        assertFalse( propertiesForCursorRow.containsKey( "name" ) );
         Assert.assertEquals( 25L, propertiesForCursorRow.get( "age" ) );
 
         rs.next();
@@ -129,6 +123,24 @@ public class ColumnPropertyStrategyTest
 
         Assert.assertEquals( "c", propertiesForCursorRow.get( "name" ) );
         Assert.assertEquals( 26L, propertiesForCursorRow.get( "age" ) );
+    }
+
+    @Test
+    public void shouldIgnoreSpecifiedColumns() throws SQLException
+    {
+        update( "CREATE TABLE rels (src BIGINT, dest BIGINT, type VARCHAR, since BIGINT)" );
+        update( "INSERT INTO rels (src,dest,type,since) VALUES(1,2,'KNOWS',123)" );
+
+        ResultSet rs = query( "SELECT * FROM rels" );
+        ColumnPropertyStrategy strategy = new ColumnPropertyStrategy();
+        strategy.initialize( rs, "src", "dest", "type" );
+
+        rs.next();
+        Map<String, Object> properties = strategy.getPropertiesForCursorRow( rs );
+        assertFalse( properties.containsKey( "src" ) );
+        assertFalse( properties.containsKey( "dest" ) );
+        assertFalse( properties.containsKey( "type" ) );
+        assertEquals( 123L, properties.get( "since" ) );
     }
 
     private void update( String sql ) throws SQLException
