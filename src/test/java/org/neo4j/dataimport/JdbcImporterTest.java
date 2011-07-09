@@ -63,7 +63,7 @@ public class JdbcImporterTest
             e.printStackTrace();
             return;
         }
-        connection = DriverManager.getConnection( "jdbc:hsqldb:mem:import" + dbId++, "sa", "" );
+        connection = DriverManager.getConnection( "jdbc:hsqldb:mem:import" + JdbcImporterTest.class.getName() + dbId++, "sa", "" );
     }
 
     @After
@@ -257,7 +257,10 @@ public class JdbcImporterTest
 
         JdbcImporter jdbcImporter = new JdbcImporter(connection, "nodes", "rels");
         jdbcImporter.setNodeIdColumnName( "i" );
-        jdbcImporter.setNodePropertyColumns( new HashSet<String>( Arrays.asList( "age" ) ) );
+//        jdbcImporter.setNodePropertyColumns( new HashSet<String>( Arrays.asList( "age" ) ) );
+        ColumnPropertyStrategy nodePropertyStrategy = new ColumnPropertyStrategy();
+        nodePropertyStrategy.setNodePropertyColumns( new HashSet<String>( Arrays.asList( "age" ) ) );
+        jdbcImporter.setNodePropertyStrategy( nodePropertyStrategy );
         jdbcImporter.setRelSrcColumnName( "s" );
         jdbcImporter.setRelDestColumnName( "d" );
         jdbcImporter.setRelTypeColumnName( "t" );

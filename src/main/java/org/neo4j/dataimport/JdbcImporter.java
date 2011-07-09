@@ -28,13 +28,15 @@ public class JdbcImporter implements BatchInserterImporter
     private String relDestColumnName = "dest";
     private String relTypeColumnName = "type";
     private Set<String> relPropertyColumns;
-    private Set<String> nodePropertyColumns;
+    private PropertyStrategy nodePropertyStrategy;
+    private PropertyStrategy relPropertyStrategy;
 
     public JdbcImporter( Connection connection, String nodes, String rels )
     {
         this.connection = connection;
         nodesTable = nodes;
         relsTable = rels;
+        nodePropertyStrategy = new ColumnPropertyStrategy();
     }
 
     public static void main( String[] args ) throws SQLException, IOException
@@ -94,27 +96,21 @@ public class JdbcImporter implements BatchInserterImporter
     {
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery( "SELECT * FROM " + nodesTable );
-        Map<String, ColumnProperty> columnTypes = getPropertyColumns( resultSet, getReservedNodeColumns(), nodePropertyColumns );
+        nodePropertyStrategy.initialize( resultSet, nodeIdColumnName );
         while ( resultSet.next() )
         {
             target.createNode( resultSet.getLong( nodeIdColumnName ),
-                buildPropertiesFromResultSet( columnTypes, resultSet ) );
+                nodePropertyStrategy.getPropertiesForCursorRow( resultSet ) );
         }
         statement.close();
-    }
-
-    private Set<String> getReservedNodeColumns()
-    {
-        Set<String> columns = new HashSet<String>();
-        columns.add( nodeIdColumnName );
-        return columns;
     }
 
     private void importRels( BatchInserter target ) throws SQLException
     {
         Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery( "SELECT * FROM " + relsTable );
-        Map<String, ColumnProperty> columnTypes = getPropertyColumns( resultSet, getReservedRelColumns(), relPropertyColumns );
+//        relPropertyStrategy.initialize( resultSet, relSrcColumnName, relDestColumnName, relTypeColumnName );
+        Map<String, ColumnAccessor> columnTypes = getPropertyColumns( resultSet, getReservedRelColumns(), relPropertyColumns );
         while ( resultSet.next() )
         {
             target.createRelationship( resultSet.getLong( relSrcColumnName ),
@@ -134,10 +130,10 @@ public class JdbcImporter implements BatchInserterImporter
         return columns;
     }
 
-    private Map<String, Object> buildPropertiesFromResultSet( Map<String, ColumnProperty> columnTypes, ResultSet resultSet ) throws SQLException
+    private Map<String, Object> buildPropertiesFromResultSet( Map<String, ColumnAccessor> columnTypes, ResultSet resultSet ) throws SQLException
     {
         Map<String, Object> properties = new HashMap<String, Object>();
-        for ( Map.Entry<String, ColumnProperty> columnEntry : columnTypes.entrySet() )
+        for ( Map.Entry<String, ColumnAccessor> columnEntry : columnTypes.entrySet() )
         {
             String key = columnEntry.getKey();
             Object value = columnEntry.getValue().getValue( resultSet );
@@ -149,9 +145,9 @@ public class JdbcImporter implements BatchInserterImporter
         return properties;
     }
 
-    private Map<String, ColumnProperty> getPropertyColumns( ResultSet resultSet, Set<String> reservedColumns, Set<String> propertyColumns ) throws SQLException
+    private Map<String, ColumnAccessor> getPropertyColumns( ResultSet resultSet, Set<String> reservedColumns, Set<String> propertyColumns ) throws SQLException
     {
-        Map<String, ColumnProperty> columnTypes = new HashMap<String, ColumnProperty>();
+        Map<String, ColumnAccessor> columnTypes = new HashMap<String, ColumnAccessor>();
         ResultSetMetaData metaData = resultSet.getMetaData();
         long columnCount = metaData.getColumnCount();
         System.out.println( String.format( "Found %d columns", columnCount ) );
@@ -160,7 +156,7 @@ public class JdbcImporter implements BatchInserterImporter
             String columnName = metaData.getColumnName( i );
             if ( isPropertyColumn( columnName, reservedColumns, propertyColumns ) )
             {
-                ColumnProperty columnType = getPropertyConverter( columnName, metaData.getColumnTypeName( i ) );
+                ColumnAccessor columnType = getPropertyConverter( columnName, metaData.getColumnTypeName( i ) );
                 columnTypes.put( columnName, columnType );
             }
         }
@@ -188,12 +184,12 @@ public class JdbcImporter implements BatchInserterImporter
         return false;
     }
 
-    private ColumnProperty getPropertyConverter( final String columnName, String columnType )
+    private ColumnAccessor getPropertyConverter( final String columnName, String columnType )
     {
 
         if ( columnType.equals( "VARCHAR" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -204,7 +200,7 @@ public class JdbcImporter implements BatchInserterImporter
         }
         else if ( columnType.equals( "BIGINT" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -215,7 +211,7 @@ public class JdbcImporter implements BatchInserterImporter
         }
         else if ( columnType.equals( "INTEGER" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -226,7 +222,7 @@ public class JdbcImporter implements BatchInserterImporter
         }
         else if ( columnType.equals( "TINYINT" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -237,7 +233,7 @@ public class JdbcImporter implements BatchInserterImporter
         }
         else if ( columnType.equals( "SMALLINT" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -248,7 +244,7 @@ public class JdbcImporter implements BatchInserterImporter
         }
         else if ( columnType.equals( "BOOLEAN" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -259,7 +255,7 @@ public class JdbcImporter implements BatchInserterImporter
         }
         else if ( columnType.equals( "FLOAT" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -270,7 +266,7 @@ public class JdbcImporter implements BatchInserterImporter
         }
         else if ( columnType.equals( "DOUBLE" ) )
         {
-            return new ColumnProperty()
+            return new ColumnAccessor()
             {
                 @Override
                 public Object getValue( ResultSet resultSet ) throws SQLException
@@ -283,11 +279,6 @@ public class JdbcImporter implements BatchInserterImporter
         {
             throw new IllegalStateException( "Unknown type: " + columnType );
         }
-    }
-
-    private interface ColumnProperty
-    {
-        Object getValue( ResultSet resultSet ) throws SQLException;
     }
 
 
@@ -316,8 +307,13 @@ public class JdbcImporter implements BatchInserterImporter
         this.relPropertyColumns = relPropertyColumns;
     }
 
-    public void setNodePropertyColumns( Set<String> nodePropertyColumns )
+    public void setNodePropertyStrategy(PropertyStrategy nodePropertyStrategy)
     {
-        this.nodePropertyColumns = nodePropertyColumns;
+        this.nodePropertyStrategy = nodePropertyStrategy;
+    }
+
+    public void setRelPropertyStrategy( PropertyStrategy relPropertyStrategy )
+    {
+        this.relPropertyStrategy = relPropertyStrategy;
     }
 }
