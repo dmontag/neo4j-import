@@ -10,6 +10,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.index.Index;
 import org.neo4j.kernel.EmbeddedGraphDatabase;
 import org.neo4j.kernel.impl.batchinsert.BatchInserter;
 import org.neo4j.kernel.impl.batchinsert.BatchInserterImpl;
@@ -132,6 +133,44 @@ public class CsvImporterTest
 
         Node node1 = graphDb.getNodeById( 1 );
         assertEquals( "hello", node1.getProperty( "name" ) );
+    }
+
+    @Test
+    public void testIndexedNodePropertyImport() throws IOException
+    {
+        addNode( "id,people|name" );
+        addNode( "1,hello" );
+        addNode( "2,bye" );
+
+        writeFiles();
+
+        CsvImporter csvImporter = new CsvImporter( nodes, rels );
+        csvImporter.importTo( batchInserter );
+
+        importComplete();
+
+        final Index<Node> index = graphDb.index().forNodes( "people" );
+        assertEquals( 1, index.get( "name", "hello" ).getSingle().getId() );
+    }
+
+    @Test
+    public void testMultipleIndexedNodePropertyImport() throws IOException
+    {
+        addNode( "id,people|firstname,people|lastname,entities|entityid@long" );
+        addNode( "1,Jane,Doe,35" );
+
+        writeFiles();
+
+        CsvImporter csvImporter = new CsvImporter( nodes, rels );
+        csvImporter.importTo( batchInserter );
+
+        importComplete();
+
+        final Index<Node> peopleIndex = graphDb.index().forNodes( "people" );
+        assertEquals( 1, peopleIndex.get( "firstname", "Jane" ).getSingle().getId() );
+        assertEquals( 1, peopleIndex.get( "lastname", "Doe" ).getSingle().getId() );
+        final Index<Node> entitiesIndex = graphDb.index().forNodes( "entities" );
+        assertEquals( 1, entitiesIndex.get( "entityid", 35 ).getSingle().getId() );
     }
 
     @Test

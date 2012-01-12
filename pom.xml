@@ -8,16 +8,25 @@
   <artifactId>neo4j-import</artifactId>
   <version>1.0</version>
 
+  <properties>
+    <neo4j.version>1.5</neo4j.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.neo4j</groupId>
-      <artifactId>neo4j</artifactId>
-      <version>1.4.M05</version>
+      <artifactId>neo4j-kernel</artifactId>
+      <version>${neo4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-lucene-index</artifactId>
+      <version>${neo4j.version}</version>
     </dependency>
     <dependency>
       <groupId>org.neo4j</groupId>
       <artifactId>neo4j-kernel</artifactId>
-      <version>1.4.M05</version>
+      <version>${neo4j.version}</version>
       <type>test-jar</type>
     </dependency>
     <dependency>
