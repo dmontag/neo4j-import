@@ -2,14 +2,12 @@ h1. Neo4j Import Tool
 
 h2. Building
 
-<pre>
-./build.sh
+<pre>./build.sh
 </pre>
 
 h2. Running
 
-<pre>
-./run.sh <new store dir> <nodes csv> <relationships csv>
+<pre>./run.sh <new store dir> <nodes csv> <relationships csv>
 </pre>
 
 h2. Input file format
@@ -19,39 +17,33 @@ Plain CSV with a leading header line. The header line supports special annotatio
 <b>Note:</b> values with commas and/or quoted values are NOT supported right not!
 
 The node format:
-<pre>
-id[,[indexname|]propertyname[@type]]*
+<pre>id[,[indexname|]propertyname[@type]]*
 </pre>
 
 The relationship format:
-<pre>
-from,to,type[,[indexname|]propertyname[@type]]*
+<pre>from,to,type[,[indexname|]propertyname[@type]]*
 </pre>
 
 h2. Examples
 
 Here's a nodes input file for nodes with two properties, the first of which is indexed in the "users" index, and the
 second of which is a long number:
-<pre>
-id,users|username,age@long
+<pre>id,users|username,age@long
 1,Dave,27
 2,Mike,21
 </pre>
 
 And here's a file connecting these two users, with a timestamp on the relationship:
-<pre>
-from,to,type,since@long
+<pre>from,to,type,since@long
 1,2,KNOWS,13242352355
 </pre>
 
 Sparse property values are also supported:
-<pre>
-id,firstname,make,year
+<pre>id,firstname,make,year
 1,Dave,,
 2,,Honda,2004
 </pre>
 
-<pre>
-from,to,type
+<pre>from,to,type
 1,2,OWNS
 </pre>
