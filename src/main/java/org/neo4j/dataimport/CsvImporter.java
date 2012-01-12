@@ -191,7 +191,6 @@ public class CsvImporter implements BatchInserterImporter
         {
             result.add( new PropertyKey( parseName(property), parseType(property), parseIndex(property) ) );
         }
-        System.out.println(result);
         return result;
     }
 
