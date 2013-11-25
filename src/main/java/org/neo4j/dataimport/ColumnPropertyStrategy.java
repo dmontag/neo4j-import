@@ -114,7 +114,7 @@ public class ColumnPropertyStrategy implements PropertyStrategy
                 }
             };
         }
-        else if ( columnType.equals( "INTEGER" ) )
+        else if ( columnType.equals( "INTEGER" ) || columnType.equals( "INT" ))  //change for mysql int range colum
         {
             return new ColumnAccessor()
             {
